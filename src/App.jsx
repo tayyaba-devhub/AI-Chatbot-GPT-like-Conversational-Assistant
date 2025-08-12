@@ -3,6 +3,8 @@
 // import { URL } from './Constant';
 // import './App.css';
 // import Answers from './Components/Answers';
+// import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+// import { faTrash } from '@fortawesome/free-solid-svg-icons';
 
 // const App = () => {
 //   const [question, setQuestion] = useState('');
@@ -10,7 +12,7 @@
 //   const [loading, setLoading] = useState(false);
 //   const [history, setHistory] = useState([]);
 
-//   // Load saved conversations from localStorage when component mounts
+//   // Load saved chats on startup
 //   useEffect(() => {
 //     const savedConversations = localStorage.getItem('chatHistory');
 //     if (savedConversations) {
@@ -18,6 +20,7 @@
 //     }
 //   }, []);
 
+//   // Format AI response
 //   const formatResponse = useCallback((text) => {
 //     return text
 //       .split('\n')
@@ -25,6 +28,7 @@
 //       .map(line => line.replace(/\*\*/g, '').trim());
 //   }, []);
 
+//   // Ask question to AI
 //   const askQuestion = useCallback(async () => {
 //     if (!question.trim()) return;
     
@@ -58,7 +62,7 @@
 
 //       setConversation(newConversation);
       
-//       // Save the new conversation to localStorage
+//       // Save to history
 //       const chatHistory = [...history, {
 //         question: question,
 //         answer: formattedResponse,
@@ -87,11 +91,12 @@
 //     }
 //   }, [question, formatResponse, conversation, history]);
 
+//   // Handle Enter key
 //   const handleKeyPress = (e) => {
 //     if (e.key === 'Enter') askQuestion();
 //   };
 
-//   // Function to load a previous conversation
+//   // Load chat from history
 //   const loadConversation = (index) => {
 //     const selectedChat = history[index];
 //     const loadedConversation = [
@@ -101,16 +106,31 @@
 //     setConversation(loadedConversation);
 //   };
 
+//   // Delete chat from history
+//   const deleteChat = (index, e) => {
+//     e.stopPropagation();
+//     const updatedHistory = [...history];
+//     updatedHistory.splice(index, 1);
+//     setHistory(updatedHistory);
+//     localStorage.setItem('chatHistory', JSON.stringify(updatedHistory));
+    
+//     // Clear if deleted chat is currently shown
+//     if (conversation.length > 0 && 
+//         conversation[0].content === history[index].question) {
+//       setConversation([]);
+//     }
+//   };
+
 //   return (
 //     <div className='flex h-screen bg-zinc-900'>
-//       {/* Left Sidebar */}
+//       {/* Left Sidebar - Chat History */}
 //       <div className='w-64 bg-zinc-800 p-4 border-r border-zinc-700 overflow-y-auto'>
 //         <div className="text-white/70 text-sm mb-6">
 //           <h2 className="text-lg font-bold text-white mb-2">AI Assistant</h2>
 //           <p>Ask me anything!</p>
 //         </div>
         
-//         {/* Chat History Section */}
+//         {/* Chat History List */}
 //         <div className="mt-6">
 //           <h3 className="text-white font-medium mb-2">Chat History</h3>
 //           {history.length === 0 ? (
@@ -120,11 +140,18 @@
 //               {history.map((item, index) => (
 //                 <div 
 //                   key={index} 
-//                   className="p-2 bg-zinc-700 rounded cursor-pointer hover:bg-zinc-600"
+//                   className="group p-2 bg-zinc-700 rounded cursor-pointer hover:bg-zinc-600 relative"
 //                   onClick={() => loadConversation(index)}
 //                 >
-//                   <p className="text-white text-sm truncate">{item.question}</p>
+//                   <p className="text-white text-sm truncate pr-5">{item.question}</p>
 //                   <p className="text-white/50 text-xs">{item.timestamp}</p>
+//                   <button
+//                     onClick={(e) => deleteChat(index, e)}
+//                     className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+//                     title="Delete chat"
+//                   >
+//                     <FontAwesomeIcon icon={faTrash} size="xs" />
+//                   </button>
 //                 </div>
 //               ))}
 //             </div>
@@ -132,9 +159,9 @@
 //         </div>
 //       </div>
       
-//       {/* Rest of your existing code remains the same */}
+//       {/* Main Chat Area */}
 //       <div className='flex-1 flex flex-col'>
-//         {/* Messages Container */}
+//         {/* Messages Display */}
 //         <div className="flex-1 overflow-y-auto p-6 space-y-4">
 //           {conversation.map((item, index) => (
 //             <div key={index} className={`flex ${item.type === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -154,6 +181,7 @@
 //             </div>
 //           ))}
           
+//           {/* Loading Indicator */}
 //           {loading && (
 //             <div className="flex justify-center p-4">
 //               <div className="flex space-x-2">
@@ -169,7 +197,7 @@
 //           )}
 //         </div>
         
-//         {/* Input Area */}
+//         {/* Input Box */}
 //         <div className='p-4 border-t border-zinc-700'>
 //           <div className='relative'>
 //             <input 
@@ -197,20 +225,37 @@
 
 // export default App;
 
-
 // App.js
 import React, { useState, useCallback, useEffect } from 'react';
 import { URL } from './Constant';
 import './App.css';
 import Answers from './Components/Answers';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faTrash, faBars, faTimes } from '@fortawesome/free-solid-svg-icons';
 
 const App = () => {
   const [question, setQuestion] = useState('');
   const [conversation, setConversation] = useState([]);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  // Check screen size and update state
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth >= 768) {
+        setShowSidebar(true);
+      } else {
+        setShowSidebar(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Initial check
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Load saved chats on startup
   useEffect(() => {
@@ -288,8 +333,9 @@ const App = () => {
       ]);
     } finally {
       setLoading(false);
+      if (isMobile) setShowSidebar(false); // Close sidebar on mobile after asking
     }
-  }, [question, formatResponse, conversation, history]);
+  }, [question, formatResponse, conversation, history, isMobile]);
 
   // Handle Enter key
   const handleKeyPress = (e) => {
@@ -304,6 +350,7 @@ const App = () => {
       { type: 'ai', content: selectedChat.answer }
     ];
     setConversation(loadedConversation);
+    if (isMobile) setShowSidebar(false); // Close sidebar on mobile after selection
   };
 
   // Delete chat from history
@@ -323,49 +370,70 @@ const App = () => {
 
   return (
     <div className='flex h-screen bg-zinc-900'>
+      {/* Mobile Sidebar Toggle Button */}
+      {isMobile && (
+        <button 
+          onClick={() => setShowSidebar(!showSidebar)}
+          className="fixed z-20 left-2 top-2 p-2 rounded-md bg-zinc-800 text-white"
+        >
+          <FontAwesomeIcon icon={showSidebar ? faTimes : faBars} />
+        </button>
+      )}
+      
       {/* Left Sidebar - Chat History */}
-      <div className='w-64 bg-zinc-800 p-4 border-r border-zinc-700 overflow-y-auto'>
-        <div className="text-white/70 text-sm mb-6">
-          <h2 className="text-lg font-bold text-white mb-2">AI Assistant</h2>
-          <p>Ask me anything!</p>
-        </div>
-        
-        {/* Chat History List */}
-        <div className="mt-6">
-          <h3 className="text-white font-medium mb-2">Chat History</h3>
-          {history.length === 0 ? (
-            <p className="text-white/50 text-sm">No previous chats</p>
-          ) : (
-            <div className="space-y-2">
-              {history.map((item, index) => (
-                <div 
-                  key={index} 
-                  className="group p-2 bg-zinc-700 rounded cursor-pointer hover:bg-zinc-600 relative"
-                  onClick={() => loadConversation(index)}
-                >
-                  <p className="text-white text-sm truncate pr-5">{item.question}</p>
-                  <p className="text-white/50 text-xs">{item.timestamp}</p>
-                  <button
-                    onClick={(e) => deleteChat(index, e)}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Delete chat"
+      {showSidebar && (
+        <div className={`${isMobile ? 'fixed z-10 inset-y-0 left-0 w-64' : 'w-64'} bg-zinc-800 p-4 border-r border-zinc-700 overflow-y-auto`}>
+          <div className="text-white/70 text-sm mb-6">
+            <h2 className="text-lg font-bold text-white mb-2">AI Assistant</h2>
+            <p>Ask me anything!</p>
+          </div>
+          
+          {/* Chat History List */}
+          <div className="mt-6">
+            <h3 className="text-white font-medium mb-2">Chat History</h3>
+            {history.length === 0 ? (
+              <p className="text-white/50 text-sm">No previous chats</p>
+            ) : (
+              <div className="space-y-2">
+                {history.map((item, index) => (
+                  <div 
+                    key={index} 
+                    className="group p-2 bg-zinc-700 rounded cursor-pointer hover:bg-zinc-600 relative"
+                    onClick={() => loadConversation(index)}
                   >
-                    <FontAwesomeIcon icon={faTrash} size="xs" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+                    <p className="text-white text-sm truncate pr-5">{item.question}</p>
+                    <p className="text-white/50 text-xs">{item.timestamp}</p>
+                    <button
+                      onClick={(e) => deleteChat(index, e)}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Delete chat"
+                    >
+                      <FontAwesomeIcon icon={faTrash} size="xs" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
       
       {/* Main Chat Area */}
-      <div className='flex-1 flex flex-col'>
+      <div className={`flex-1 flex flex-col ${isMobile && showSidebar ? 'ml-64' : ''}`}>
         {/* Messages Display */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+          {conversation.length === 0 && !loading && (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center text-white/50">
+                <p className="text-lg">No conversation yet</p>
+                <p className="text-sm mt-2">Ask a question or select from your history</p>
+              </div>
+            </div>
+          )}
+          
           {conversation.map((item, index) => (
             <div key={index} className={`flex ${item.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-3xl p-3 rounded-lg ${
+              <div className={`max-w-[90%] md:max-w-3xl p-3 rounded-lg ${
                 item.type === 'user' 
                   ? 'bg-blue-600 text-white rounded-tr-none'
                   : 'bg-[#F2CD5D] text-zinc-900 rounded-tl-none'
